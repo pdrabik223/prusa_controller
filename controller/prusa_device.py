@@ -1,0 +1,306 @@
+import enum
+import time
+from serial import Serial
+from serial import SerialException
+from typing import Optional
+import serial.tools.list_ports
+
+
+import math
+import time
+from abc import abstractmethod
+from typing import Optional, Tuple
+
+import serial.tools.list_ports
+import enum
+from typing import Callable, Generic, NoReturn, Optional, Tuple, TypeVar, Any
+
+T = TypeVar("T")
+E = TypeVar("E", bound=Exception)
+
+Result = Tuple[T, Optional[E]]
+
+ResultWithErr = Tuple[T, Optional[Exception]]
+
+
+class Ok(Generic[T, E]):
+    _value: T
+    __match_args__ = ("_value",)
+
+    def __init__(self, value: T):
+        self._value = value
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, Ok):
+            return self._value == other._value  # type: ignore
+        return False
+
+    def unwrap(self) -> T:
+        return self._value
+
+    def unwrap_or(self, default: T) -> T:
+        return self.unwrap()
+
+    def unwrap_or_else(self, op: Callable[[E], T]) -> T:
+        return self.unwrap()
+
+    def __repr__(self) -> str:
+        return f"Ok({repr(self._value)})"
+
+
+class Err(Generic[T, E]):
+    _err: E
+    __match_args__ = ("_err",)
+
+    def __init__(self, err: E):
+        self._err = err
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, Err):
+            return self._err == other._err  # type: ignore
+        return False
+
+    def unwrap(self) -> NoReturn:
+        raise self._err
+
+    def unwrap_or(self, default: T) -> T:
+        return default
+
+    def unwrap_or_else(self, op: Callable[[E], T]) -> T:
+        return op(self._err)
+
+    def __repr__(self) -> str:
+        return f"Err({repr(self._err)})"
+
+
+def static_vars(**kwargs) -> callable:
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+
+    return decorate
+
+
+def list_available_serial_ports():
+    ports = serial.tools.list_ports.comports()
+    for port, desc, hwid in sorted(ports):
+        print("{}: {} [{}]".format(port, desc, hwid))
+
+
+class Point3D:
+    def __init__(self, x=0, y=0, z=0):
+        self.x: Optional[float] = x
+        self.y: Optional[float] = y
+        self.z: Optional[float] = z
+
+    def is_none(self):
+        return self.x is None or self.y is None or self.z is None
+
+    def from_tuple(self, position: Tuple[float, float, float]):
+        self.x = position[0]
+        self.y = position[1]
+        self.z = position[2]
+
+    def as_tuple(self) -> Optional[Tuple[float, float, float]]:
+        return self.x, self.y, self.z
+
+
+class PrusaDevice:
+    _device: Serial = None  # pyserial connector device
+    current_position: Point3D = Point3D()
+    x_size: float = 220
+    y_size: float = 220
+    z_size: float = 200
+    speed: float = 900
+    
+    def __init__(self, device) -> None:
+        super().__init__()
+        self._device = device
+
+    # TODO READ on self
+    def __del__(self) -> None:
+        if self._device is None:
+            return
+        commands = [
+            "G4",  # wait
+            "M221 S100",  # reset flow
+            "M900 K0",  # reset LA
+            "M907 E538",  # reset extruder motor current
+            "M104 S0",  # turn off temperature
+            "M140 S0",  # turn off heated
+            "M107 M84",  # turn off fan  # disable motors
+        ]
+        for command in commands:
+            self.send_and_await(command=command)
+
+        self._device.close()
+
+    @staticmethod
+    def connect_on_port(port: str, baudrate: int = 115200, timeout=2) -> "PrusaDevice":
+        """
+        Connect to Prusa device
+        Args:
+            port (str): COM port on windows system, usually 9.
+            baudrate (int, optional): baudrate. Defaults to 115200.
+            timeout (int, optional): timeout. Defaults to 5.
+
+        Returns:
+            PrusaDevice: _description_
+        """
+        device = Serial(port=port, baudrate=baudrate, timeout=timeout)
+        time.sleep(2)
+
+        resp = device.readline().decode("utf-8")
+
+        while resp != "":
+            print(resp.strip())
+            resp = device.readline().decode("utf-8")
+
+        return PrusaDevice(device)
+
+    @staticmethod
+    def connect() -> "PrusaDevice":
+        baudrate: int = 115200
+        timeout: int = 1
+        device: Optional[Serial] = None
+        available_ports = serial.tools.list_ports.comports()
+
+        print("List all available ports:")
+        for port, desc, hwid in sorted(available_ports):
+            print(f"\t port: '{port}', desc: '{desc}', hwid: '{hwid}")
+
+        for port, desc, hwid in sorted(available_ports):
+            print(f"Scanning port: '{port}', desc: '{desc}', hwid: '{hwid}")
+            try:
+                device: Serial = Serial(
+                    port=str(port), baudrate=baudrate, timeout=timeout
+                )
+                print(f"Serial port is Open'")
+
+                time.sleep(1)
+                resp = device.readline().decode("utf-8")
+                print(f"Answer: '{resp}'")
+
+                if "start" not in resp:
+                    raise SerialException()
+
+                print(f"Connected on port: '{port}', desc: '{desc}', hwid: '{hwid}")
+
+                break
+
+            except SerialException:
+                device = None
+                continue
+
+        if not device:
+            raise SerialException("Device not found")
+
+        resp = device.readline().decode("utf-8")
+        while resp != "":
+            print(resp.strip())
+            resp = device.readline().decode("utf-8")
+
+        return PrusaDevice(device=device)
+
+    class PrusaPrinterStatus(enum.Enum):
+        PROCESSING = "processing"
+        READY = "ready"
+
+    def send_and_await(self, command: str) -> str:
+        """
+        send command to Prusa device, then await response
+
+        Args:
+            command (str): g-code command
+
+        Returns:
+            str: response from device
+        """
+
+        # if "F" not in command:
+        #     command += f" F {self.speed}"
+        command = command.strip()
+
+        if command[-1] != "\r":
+            command += "\r"
+
+        if command[-1] != "\n":
+            command += "\n"
+
+        # print(f"predicted_time_of_execution: {self.predict_time_of_execution(command)}")
+        self._device.write(bytearray(command, "utf-8"))
+        # time.sleep(self.predict_time_of_execution(command))
+
+        # if "G1" in command:
+        #     self.set_current_position_from_string(command)
+
+        # elif "G28" in command:
+        #     self.current_position.from_tuple((0, 0, 0))
+
+        resp = ""
+        retries = 5
+        r = 0
+        # after every successfully completed command, prusa returns 'ok' message
+        while "ok" not in resp:
+            resp = str(self._device.readline().decode("utf-8"))
+            print(resp.strip())
+            if "busy" in resp:
+                print("awaiting 2s")
+                time.sleep(2)
+            if "Command not found!" in resp:
+                print('"', command, '"')
+                break
+            else:
+                r += 1
+                # time.sleep(0.5)  # import time
+                if r > retries:
+                    return "none message"
+
+    def startup_procedure(self) -> None:
+        """
+        send default parameters (motor speed, acceleration, model check, etc...)
+        and zero all the axies
+        """
+        commands = [
+            "; generated by PrusaSlicer 2.7.4+win64 on 2025-11-16 at 11:48:13 UTC",
+            "; external perimeters extrusion width = 0.45mm",
+            "; perimeters extrusion width = 0.45mm",
+            "; infill extrusion width = 0.45mm",
+            "; solid infill extrusion width = 0.45mm",
+            "; top infill extrusion width = 0.40mm",
+            "; first layer extrusion width = 0.42mm",
+            "M73 P0 R0",
+            "M73 Q0 S0",
+            "M201 X1000 Y1000 Z200 E5000 ; sets maximum accelerations, mm/sec^2",
+            "M203 X200 Y200 Z12 E120 ; sets maximum feedrates, mm / sec",
+            "M204 S1250 T1250 ; sets acceleration (S) and retract acceleration (R), mm/sec^2",
+            "M205 X8.00 Y8.00 Z0.40 E4.50 ; sets the jerk limits, mm/sec",
+            "M205 S0 T0 ; sets the minimum extruding and travel feed rate, mm/sec",
+            # "; printing object Shape-Box id:0 copy 0",
+            # "; stop printing object Shape-Box id:0 copy 0",
+            # ";TYPE:Custom",
+            # 'M862.3 P "MK3S" ; printer model check',
+            # "M862.1 P0.4 ; nozzle diameter check",
+            # "M115 U3.13.3 ; tell printer latest fw version",
+            # "G90 ; use absolute coordinates",
+            # "M83 ; extruder relative mode",
+            # "M104 S1 ; set extruder temp",
+            # "M140 S1 ; set bed temp",
+            # "G28 W ; home all without mesh bed level",
+            # '; generated by PrusaSlicer 2.7.4+win64 on 2025-11-15 at 21:19:12 UTC'
+            # "M201 X1000 Y1000 Z200 E5000 ; sets maximum accelerations, mm/sec^2",
+            # "M203 X200 Y200 Z12 E120 ; sets maximum feedrates, mm / sec",
+            # "M204 S1250 T1250 ; sets acceleration (S) and retract acceleration (R), mm/sec^2",
+            # "M205 X8.00 Y8.00 Z0.40 E4.50 ; sets the jerk limits, mm/sec",
+            # "M104 S1 ; turn off temperature"
+            # "M140 S1 ; turn off heatbed"
+            # "M107 ; turn off fan"
+            # # "M17"
+            # 'M862.3 P "MK3S" ; printer model check'
+            # "M862.1 P0.4 ; nozzle diameter check"
+            # "G28 W",
+            # "G80 X109.557 Y89.5573 W30.8854 H30.8854 ; mesh bed levelling"
+        ]
+        for command in commands:
+            self.send_and_await(command=command)
