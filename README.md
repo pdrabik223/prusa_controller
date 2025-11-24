@@ -15,7 +15,9 @@ Repo contains:
 1. Test new pad soft on the printer
 
 
-# Gcode commands
+# [Gcode commands](https://help.prusa3d.com/article/prusa-firmware-specific-g-code-commands_112173)
+[RepRap](https://reprap.org/wiki/G-code#M114:_Get_Current_Position)
+
 [M400 - Wait for all moves to finish](https://help.prusa3d.com/article/prusa-firmware-specific-g-code-commands_112173#:~:text=M400%20%2D%20Wait%20for%20all%20moves%20to%20finish%20M400%3A%20Wait%20for%20current%20moves%20to%20finish)
 
 [M300 - Play tone](https://help.prusa3d.com/article/prusa-firmware-specific-g-code-commands_112173#:~:text=%2D%20Target%20position-,M300%20%2D%20Play%20tone,-M300%3A%20Play%20beep)
