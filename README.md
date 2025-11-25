@@ -5,15 +5,18 @@ Repo contains:
 1. pc-prusa live interface - Done
     - submarine steering pad controls - Done
     - terminal gcode injection - Done
-    - from file gcode runner - In Progress
-    -  
+    - from file gcode runner - In Progres
+
+
 2. gcode-file composer
 3. gcode-file   
 
 # TODO
-1. Improve pad state display
-1. Test new pad soft on the printer
-
+~~1. Improve pad state display~~
+~~2. Test new pad soft on the printer~~
+3. Pad controls very aggressively utilizes cpu, some other game pad library should be used  
+4. Basic Info panel in browser
+5. 
 
 # [Gcode commands](https://help.prusa3d.com/article/prusa-firmware-specific-g-code-commands_112173)
 [RepRap](https://reprap.org/wiki/G-code#M114:_Get_Current_Position)

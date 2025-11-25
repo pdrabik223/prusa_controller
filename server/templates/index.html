@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.fluid.classless.pumpkin.min.css">
+    <title>Prusa</title>
+</head>
+
+
+<script type="text/javascript" charset="utf-8">
+    var socket = io();
+
+    socket.on('connect', function () {
+        socket.emit('my event', { data: 'I\'m connected!' });
+    });
+
+    function sendToSocket() {
+        socket.emit('my event', { data: 'BUTTON' });
+    }
+    function connect() { }
+
+</script>
+
+<body>
+    <h2>Welcome</h2>
+    <button onclick="sendToSocket()">emit stuff</button>
+
+
+</body>
+
+</html>

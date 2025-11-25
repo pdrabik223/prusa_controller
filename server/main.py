@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -17,14 +17,15 @@ def test_connect(auth):
 @socketio.on('disconnect')
 def test_disconnect(reason):
     print('Client disconnected, reason:', reason)
-    
-    
+        
 @socketio.on('my event')
 def handle_my_custom_event(json):
     print('received json: ' + str(json))
     
+    
 @app.route('/')
 def index():
+    
     return render_template('index.html')
 
 

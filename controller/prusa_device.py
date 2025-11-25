@@ -144,7 +144,7 @@ class PrusaDevice:
             command += "\n"
 
         self._device.write(bytearray(command, "utf-8"))
-        self._device.write(bytearray("M400\r\n", "utf-8"))
+        # self._device.write(bytearray("M400\r\n", "utf-8"))
         
         resp = ""
         retries = 5

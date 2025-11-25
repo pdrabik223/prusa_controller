@@ -97,10 +97,6 @@ class Controller:
                 elif event.code == "BTN_TRIGGER_HAPPY4":
                     self.DownDPad = event.state
 
-
-
-
-
 def increase_speed(speed, increase_amount, default_values = {"speed_increase_frames" : 1000, "max_speed" : 500, "min_speed" : 0}):
     
     increase_per_frame = (default_values["max_speed"] - default_values["min_speed"]) / default_values["speed_increase_frames"]
@@ -131,7 +127,6 @@ if __name__ == "__main__":
     previous = []
     current = []
     while True:
-        
         current = [
             round(joy.LeftJoystickX,3),
             round(joy.LeftJoystickY,3),
@@ -141,9 +136,8 @@ if __name__ == "__main__":
         ]   
         speed = increase_speed(speed=speed, increase_amount=current[4])
         current[4] = speed
-        
+
         if previous != current:
-            print("                                                         \r", end="")
-            print(current,end="")
+            print(current)
             previous = current
         

@@ -15,9 +15,9 @@ time.sleep(5)
 prusa.startup_procedure()
 time.sleep(5)
 
-
 prusa.send_and_await("G28 W")
-prusa.send_and_await("G1 Z10")
+prusa.send_and_await("G1 X0 Y0 Z10")
+
 resp = input(
     """[1] enable manual control
 [2] pad control
@@ -26,40 +26,39 @@ resp = input(
 
 current_position = (0, 0, 10)
 if resp.strip() == "2":
-    
-    step = 0.1
-    horizontal_step = 0.5
-    
+
     max_speed = 1000
     min_speed = 100
-    movement_speed = 100
-    
+
+    horizontal_step_size = 5
+    # movement_speed = 100
+
     while True:
         # time.sleep(0.1)
         [x, y, up, down, speed] = [
-            round(pad.LeftJoystickX,2),
-            round(pad.LeftJoystickY,2),
+            pad.LeftJoystickX,
+            pad.LeftJoystickY,
             pad.RightBumper,
             pad.LeftBumper,
-            round(pad.RightTrigger,2)
+            pad.RightTrigger,
         ]
 
-        x = current_position[0] + x * (horizontal_step * speed * 10)
-        y = current_position[1] + y * (horizontal_step * speed * 10)
-        z = current_position[2]
-        
-        speed = speed * max_speed
-        
+        speed = round(speed * max_speed)
+
         if speed < min_speed:
             speed = min_speed
         elif speed > max_speed:
             speed = max_speed
-            
+
+        x = round(current_position[0] + x * horizontal_step_size, 2)
+        y = round(current_position[1] + y * horizontal_step_size, 2)
+        z = current_position[2]
+
         if up != 0:
-            z = current_position[2] + step
+            z = current_position[2] + 1
 
         if down != 0:
-            z = current_position[2] - step
+            z = current_position[2] - 1
 
         if x < 0 or x > 200:
             x = current_position[0]
@@ -70,22 +69,15 @@ if resp.strip() == "2":
         if z < 0 or z > 200:
             z = current_position[2]
 
-        x = round(x, 3)
-        y = round(y, 3)
-        z = round(z, 3)
-        speed = round(speed)
-        
-        
         if (
-            speed != 0
-            and (x != current_position[0]
+            x != current_position[0]
             or y != current_position[1]
-            or z != current_position[2])
+            or z != current_position[2]
         ):
             current_position = (x, y, z)
-            
+
             new_gcode = f"G1 X{x} Y{y} Z{z} F{speed}"
-            
+
             prusa.send_and_await(new_gcode)
             print(new_gcode)
             # time.sleep(0.1)
