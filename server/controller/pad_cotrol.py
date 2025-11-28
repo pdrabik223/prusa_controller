@@ -37,8 +37,6 @@ class Controller:
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
 
-
-
     def _monitor_controller(self):
         while True:
 
@@ -97,24 +95,32 @@ class Controller:
                 elif event.code == "BTN_TRIGGER_HAPPY4":
                     self.DownDPad = event.state
 
-def increase_speed(speed, increase_amount, default_values = {"speed_increase_frames" : 1000, "max_speed" : 500, "min_speed" : 0}):
-    
-    increase_per_frame = (default_values["max_speed"] - default_values["min_speed"]) / default_values["speed_increase_frames"]
-    
-    def sanitize_output(val, increase_amount, default_values = default_values):
+
+def increase_speed(
+    speed,
+    increase_amount,
+    default_values={"speed_increase_frames": 1000, "max_speed": 500, "min_speed": 0},
+):
+
+    increase_per_frame = (
+        default_values["max_speed"] - default_values["min_speed"]
+    ) / default_values["speed_increase_frames"]
+
+    def sanitize_output(val, increase_amount, default_values=default_values):
         val = round(val, 3)
-        if (val < default_values["min_speed"]): return default_values["min_speed"]
-        if (val > default_values["max_speed"]): return default_values["max_speed"] * increase_amount
+        if val < default_values["min_speed"]:
+            return default_values["min_speed"]
+        if val > default_values["max_speed"]:
+            return default_values["max_speed"] * increase_amount
         return val
-    
-    if (increase_amount == 0):
-        result =  speed - increase_per_frame
+
+    if increase_amount == 0:
+        result = speed - increase_per_frame
         return sanitize_output(result, increase_amount)
-    
+
     result = speed + increase_per_frame
     return sanitize_output(result, increase_amount)
-    
-    
+
 
 if __name__ == "__main__":
     try:
@@ -122,22 +128,21 @@ if __name__ == "__main__":
     except Exception as ex:
         print("no pad detected")
         exit(1)
-        
+
     speed = 0
     previous = []
     current = []
     while True:
         current = [
-            round(joy.LeftJoystickX,3),
-            round(joy.LeftJoystickY,3),
+            round(joy.LeftJoystickX, 3),
+            round(joy.LeftJoystickY, 3),
             joy.RightBumper,
             joy.LeftBumper,
-            round(joy.RightTrigger,3)
-        ]   
+            round(joy.RightTrigger, 3),
+        ]
         speed = increase_speed(speed=speed, increase_amount=current[4])
         current[4] = speed
 
         if previous != current:
             print(current)
             previous = current
-        

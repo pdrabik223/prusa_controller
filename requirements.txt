@@ -3,3 +3,7 @@ black
 flask 
 pyserial
 flask-socketio
+
+
+# dev
+black

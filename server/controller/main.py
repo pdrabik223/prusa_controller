@@ -31,10 +31,8 @@ if resp.strip() == "2":
     min_speed = 100
 
     horizontal_step_size = 5
-    # movement_speed = 100
 
     while True:
-        # time.sleep(0.1)
         [x, y, up, down, speed] = [
             pad.LeftJoystickX,
             pad.LeftJoystickY,

@@ -16,21 +16,157 @@
 <script type="text/javascript" charset="utf-8">
     var socket = io();
 
-    socket.on('connect', function () {
-        socket.emit('my event', { data: 'I\'m connected!' });
+    socket.on('connect', function (data) {
+        document.getElementById("status").innerHTML = "Connected"
+    });
+    socket.on('status', function (data) {
+        document.getElementById("printer_status").innerHTML = data
+    })
+
+    function round(val) {
+        return Math.round((val + Number.EPSILON) * 100) / 100
+    }
+
+    const gamepads = {};
+
+    var gamepadState = null
+    class PrinterState {
+        constructor(pos_x = 0, pos_y = 0, pos_z = 10, max_speed = 1000, min_speed = 100, step_size = 5) {
+            this.pos_x = pos_x
+            this.pos_y = pos_y
+            this.pos_z = pos_z
+            this.max_speed = max_speed
+            this.min_speed = min_speed
+            this.step_size = step_size
+        }
+        updateState(gamepad_state) {
+
+            let speed = round(gamepad_state.speed * this.max_speed)
+
+            if (speed > this.max_speed)
+                speed = this.max_speed
+            else if (speed < this.min_speed)
+                speed = this.min_speed
+
+            let x = round(this.pos_x + gamepad_state.x * this.step_size)
+            let y = round(this.pos_y + gamepad_state.y * this.step_size)
+            let z = round(this.pos_z + gamepad_state.z * this.step_size)
+
+            if (x < 0 || x > 200)
+                x = this.pos_x
+
+            if (y < 0 || y > 200)
+                y = this.pos_y
+
+            if (z < 0 || z > 200)
+                z = this.pos_z
+
+            if (x != this.pos_x || y != this.pos_y || z != this.pos_z) {
+                this.pos_x = x
+                this.pos_y = y
+                this.pos_z = z
+                return `G1 X${x} Y${y} Z${z} F${speed}`
+            }
+            return null
+        }
+    }
+    var printerState = new PrinterState()
+    class GamepadState {
+        constructor(x, y, z, speed) {
+            this.x = round(x)
+            this.y = round(y)
+            this.z = round(z)
+            this.speed = round(speed)
+        }
+        isEqual(other) {
+            if (other === null) return false
+            if (this.x !== other.x) return false
+            if (this.y !== other.y) return false
+            if (this.z !== other.z) return false
+            if (this.speed !== other.speed) return false
+            return true
+
+        }
+    }
+    async function gamepadLoop() {
+
+        const gamepads = navigator.getGamepads();
+        if (!gamepads) {
+            return;
+        }
+
+        const gp = gamepads[0];
+
+        let gpState = new GamepadState(gp.axes[0], gp.axes[1], gp.axes[2], gp.buttons[7].value)
+        if (!gpState.isEqual(gamepadState)) {
+            gamepadState = gpState
+            let gcode = printerState.updateState(gamepadState)
+            if (gcode != null) {
+                console.log(JSON.stringify(gcode))
+                let resp = await fetch("/gcode", {
+                    method: "POST",
+                    body: JSON.stringify({ gcode }),
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8"
+                    }
+
+                });
+
+            }
+        }
+
+        start = requestAnimationFrame(gamepadLoop);
+
+    }
+
+    function gamepadHandler(event, connected) {
+        const gamepad = event.gamepad;
+        if (connected) {
+            gamepads[gamepad.index] = gamepad;
+            gamepadLoop()
+        } else {
+            delete gamepads[gamepad.index];
+        }
+    }
+
+    async function connectToPrinter() {
+        let resp = await fetch("/connect_to_printer", { method: "GET", });
+
+
+    }
+
+    window.addEventListener("gamepadconnected", (e) => {
+        gamepadHandler(e, true);
+        console.log(
+            "Gamepad connected at index %d: %s. %d buttons, %d axes.",
+            e.gamepad.index,
+            e.gamepad.id,
+            e.gamepad.buttons.length,
+            e.gamepad.axes.length,
+        );
     });
 
-    function sendToSocket() {
-        socket.emit('my event', { data: 'BUTTON' });
-    }
-    function connect() { }
+
+    window.addEventListener("gamepaddisconnected", (e) => {
+        gamepadHandler(e, false);
+
+        console.log(
+            "Gamepad disconnected from index %d: %s",
+            e.gamepad.index,
+            e.gamepad.id,
+        );
+    });
 
 </script>
 
 <body>
     <h2>Welcome</h2>
-    <button onclick="sendToSocket()">emit stuff</button>
+    <h3 id="status">connecting</h3>
+    <h3>Printer Status</h3>
+    <p id="printer_status">unknown</p>
 
+    <button onclick="sendToSocket()">emit stuff</button>
+    <button onclick="connectToPrinter()">Connect</button>
 
 </body>
 
