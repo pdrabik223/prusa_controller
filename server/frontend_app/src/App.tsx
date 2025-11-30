@@ -1,26 +1,59 @@
-
-import type { IconType } from "react-icons";
 import { Row } from "./row"
 import { RiSettingsLine } from "react-icons/ri";
-import { Column } from "./Column";
 import { useState } from "react";
+import { Canvas, useFrame, type Vector3 } from "@react-three/fiber";
+import { useRef } from 'react'
+import type { Mesh } from "three";
+
+
+interface CubeProps {
+
+  position: Vector3
+  size: [number, number, number]
+
+}
+
+const Cube = (props: CubeProps) => {
+
+  const ref = useRef<Mesh>(null)
+
+  useFrame((state, delta) => {
+    ref.current!.rotation.x += delta * 0.5
+    ref.current!.rotation.y += delta * 0.75
+  })
+
+  return (
+    <mesh
+      position={props.position}
+      ref={ref}
+    >
+      <boxGeometry args={props.size} />
+      <meshStandardMaterial
+        color={'orange'}
+      />
+    </mesh>
+  )
+}
+
 
 function App() {
 
   return <>
     <Header />
-    <h1> Main Status Page</h1>
 
     <button> Connect To printer</button>
 
     <p> gcode file upload for printing </p>
+    <Canvas>
+
+      <directionalLight position={[0, 0, 2]} />
+      <ambientLight intensity={0.4} />
+
+      <Cube position={[0, 0, 0]} size={[1, 5, 1]} />
 
 
+    </Canvas>
     <p>Svg to gcode</p>
-    <p>Svg to gcode</p>
-
-
-
   </>
 
 }
@@ -39,14 +72,6 @@ export const MainPage: React.FC<{}> = () => {
 export const Header: React.FC<{}> = () => {
 
   return <div style={{
-    // width: "100%",
-    // height: "60px",
-    // position: 'sticky',
-    // top: '0px',
-    // left: '0px',
-    // backgroundColor: "red",
-    // margin: 'auto',
-    // padding: '10px 16px'
 
     position: "sticky",
     height: "80px",
