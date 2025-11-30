@@ -16,7 +16,6 @@ Repo contains:
 ~~2. Test new pad soft on the printer~~
 3. Pad controls very aggressively utilizes cpu, some other game pad library should be used  
 4. Basic Info panel in browser
-5. 
 
 # [Gcode commands](https://help.prusa3d.com/article/prusa-firmware-specific-g-code-commands_112173)
 [RepRap](https://reprap.org/wiki/G-code#M114:_Get_Current_Position)
